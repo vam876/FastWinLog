@@ -19,6 +19,18 @@ class EvtxParser:
     """EVTX文件解析器 - 通过Channel识别日志类型"""
     
     NS = {'evt': 'http://schemas.microsoft.com/win/2004/08/events/event'}
+    USERDATA_ALIAS_FIELDS = {
+        'EventData_IpAddress': (
+            'EventData_IpAddress', 'EventData_Address', 'EventData_ClientAddress',
+            'EventData_ClientIP', 'IpAddress', 'Address', 'ClientAddress', 'ClientIP'
+        ),
+        'EventData_TargetUserName': (
+            'EventData_TargetUserName', 'EventData_User', 'TargetUserName', 'User', 'AccountName'
+        ),
+        'EventData_SessionID': (
+            'EventData_SessionID', 'EventData_Session', 'SessionID', 'Session'
+        ),
+    }
     
     LEVEL_MAP = {
         '0': '日志已启用',
@@ -55,8 +67,8 @@ class EvtxParser:
         finally:
             evtx_file.close()
         
-        log_type = get_log_type_by_channel(channel) if channel else 'Unknown'
-        is_supported = is_supported_channel(channel) if channel else False
+        log_type = get_log_type_by_channel(channel) if channel else 'Other'
+        is_supported = True
         
         return channel, log_type, is_supported
     
@@ -184,9 +196,31 @@ class EvtxParser:
                         
                         if tag and value:
                             event_data[tag] = value
+
+                            prefixed_tag = f'EventData_{tag}'
+                            if prefixed_tag not in event_data:
+                                event_data[prefixed_tag] = value
+
+            self._normalize_alias_fields(event_data)
         
         except Exception as e:
             pass
+
+    def _normalize_alias_fields(self, event_data: Dict) -> None:
+        """对不同日志通道中同义字段做标准化补齐。"""
+        for canonical_name, aliases in self.USERDATA_ALIAS_FIELDS.items():
+            canonical_value = ''
+            for alias_name in aliases:
+                alias_value = event_data.get(alias_name)
+                if alias_value not in (None, ''):
+                    canonical_value = alias_value
+                    break
+
+            if not canonical_value:
+                continue
+
+            for alias_name in aliases:
+                event_data.setdefault(alias_name, canonical_value)
     
     def _parse_key_value_data(self, value: str, event_data: Dict) -> None:
         """解析键值对格式的数据（如PowerShell日志）"""

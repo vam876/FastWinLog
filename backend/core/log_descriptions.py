@@ -40,6 +40,18 @@ LOG_FILE_DESCRIPTIONS = {
         'category': 'PowerShell',
         'importance': 'high'
     },
+    'Microsoft-Windows-TerminalServices': {
+        'name': 'TerminalServices日志',
+        'description': '记录远程桌面会话、连接、重连和登录相关事件',
+        'category': 'TerminalServices',
+        'importance': 'high'
+    },
+    'Microsoft-Windows-RemoteDesktopServices': {
+        'name': 'RemoteDesktop Services日志',
+        'description': '记录远程桌面服务核心、会话和传输相关事件',
+        'category': 'TerminalServices',
+        'importance': 'high'
+    },
 }
 
 
@@ -107,6 +119,7 @@ def get_category_color(category: str) -> str:
         '系统': '#ff9800',
         '应用程序': '#4caf50',
         'PowerShell': '#5c6bc0',
+        'TerminalServices': '#1976d2',
         '其他': '#888'
     }
     return colors.get(category, '#888')

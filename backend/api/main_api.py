@@ -84,6 +84,15 @@ class LogAnalysisApi:
         
         print("[API] Initialized")
 
+    def _update_logs_directory(self, logs_dir: str) -> str:
+        """Update the active logs directory across components."""
+        normalized_dir = os.path.abspath(logs_dir or os.path.join(self.base_dir, 'logs'))
+        self.logs_dir = normalized_dir
+        self.log_service.set_logs_dir(normalized_dir)
+        self.alert_service.logs_dir = normalized_dir
+        self.evtx_repo.logs_dir = normalized_dir
+        return normalized_dir
+
     # ================= 日志文件API =================
     
     def get_log_files(self, include_loaded: bool = True) -> dict:
@@ -96,6 +105,13 @@ class LogAnalysisApi:
     def get_file_info(self, file_path: str) -> dict:
         """获取文件详细信息"""
         return self.log_service.get_file_info(file_path)
+
+    def get_current_log_directory(self) -> dict:
+        """获取当前日志目录"""
+        return {
+            'success': True,
+            'logs_dir': self.logs_dir
+        }
     
     def select_log_file(self) -> dict:
         """打开文件选择对话框"""
@@ -113,6 +129,29 @@ class LogAnalysisApi:
                 return self.get_file_info(file_path)
             else:
                 return {'success': False, 'error': '未选择文件'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def select_log_directory(self) -> dict:
+        """打开目录选择对话框并切换当前日志目录"""
+        try:
+            wv = _get_webview()
+            dialog_type = getattr(wv, 'FOLDER_DIALOG', None)
+            if hasattr(wv, 'FileDialog'):
+                dialog_type = wv.FileDialog.FOLDER
+
+            result = wv.windows[0].create_file_dialog(dialog_type, directory=self.logs_dir)
+            if not result or len(result) == 0:
+                return {'success': False, 'cancelled': True, 'error': '未选择目录'}
+
+            selected_dir = os.path.abspath(result[0])
+            if not os.path.isdir(selected_dir):
+                return {'success': False, 'error': f'目录不存在: {selected_dir}'}
+
+            self._update_logs_directory(selected_dir)
+            files_result = self.get_log_files()
+            files_result['logs_dir'] = selected_dir
+            return files_result
         except Exception as e:
             return {'success': False, 'error': str(e)}
     

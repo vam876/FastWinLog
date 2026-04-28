@@ -13,21 +13,31 @@ from ..utils.memory_manager import MemoryManager
 class LogService:
     """Log file management service"""
     
-    # Blacklist for log files that should not be loaded (Beta)
-    BLACKLIST_PATTERNS = [
-        'TerminalServices',
-        'RemoteDesktop',
-        'RDP',
-    ]
+    # Import restrictions have been removed. Keep the hook for future use.
+    BLACKLIST_PATTERNS = []
     
     def __init__(self, base_dir: str, sqlite_repo: SqliteRepository, memory_manager: MemoryManager):
         self.base_dir = base_dir
         self.logs_dir = os.path.join(base_dir, 'logs')
         self.sqlite_repo = sqlite_repo
         self.memory = memory_manager
+
+    def set_logs_dir(self, logs_dir: str) -> None:
+        """Update the active logs directory for the current session."""
+        if not logs_dir:
+            self.logs_dir = os.path.join(self.base_dir, 'logs')
+            return
+
+        self.logs_dir = os.path.abspath(logs_dir)
+
+    def get_logs_dir(self) -> str:
+        """Return the active logs directory."""
+        return self.logs_dir
     
     def _is_blacklisted(self, filename: str) -> bool:
         """Check if file is in blacklist"""
+        if not self.BLACKLIST_PATTERNS:
+            return False
         filename_lower = filename.lower()
         for pattern in self.BLACKLIST_PATTERNS:
             if pattern.lower() in filename_lower:
@@ -197,15 +207,25 @@ class LogService:
     def _build_empty_hint(self) -> dict:
         """构建空目录提示"""
         system_log_path = r'C:\Windows\System32\winevt\Logs'
+        default_logs_dir = os.path.join(self.base_dir, 'logs')
+        is_default_logs_dir = os.path.normpath(self.logs_dir).lower() == os.path.normpath(default_logs_dir).lower()
+
+        if is_default_logs_dir:
+            title = '当前 logs 目录为空'
+            message = '请将 Windows 日志文件（.evtx）放入程序运行目录下的 logs 文件夹中'
+        else:
+            title = '当前选择目录为空'
+            message = '当前选择的目录中没有找到 .evtx 日志文件，请重新选择目录或复制日志文件后刷新'
+
         return {
-            'title': '📂 当前 logs 目录为空',
-            'message': f'请将 Windows 日志文件（.evtx）放入程序运行目录下的 logs 文件夹中',
+            'title': title,
+            'message': message,
             'logs_dir': self.logs_dir,
             'system_log_path': system_log_path,
             'tips': [
-                '💡 支持所有 Windows 事件日志类型（.evtx 格式）',
-                f'📁 日志存放路径：{self.logs_dir}',
-                f'🔒 系统日志默认路径：{system_log_path}'
+                '支持所有 Windows 事件日志类型（.evtx 格式）',
+                f'当前日志目录：{self.logs_dir}',
+                f'系统默认日志目录：{system_log_path}'
             ]
         }
     

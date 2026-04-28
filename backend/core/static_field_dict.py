@@ -13,6 +13,10 @@ CHANNEL_TO_LOG_TYPE = {
     'System': 'System',
     'Microsoft-Windows-PowerShell/Operational': 'PowerShell',
     'Windows PowerShell': 'PowerShell',
+    'Microsoft-Windows-TerminalServices-LocalSessionManager/Operational': 'TerminalServices',
+    'Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational': 'TerminalServices',
+    'Microsoft-Windows-TerminalServices-RDPClient/Operational': 'TerminalServices',
+    'Microsoft-Windows-RemoteDesktopServices-RdpCoreTS/Operational': 'TerminalServices',
 }
 
 # Supported log types - All Windows Event Log types are supported
@@ -21,6 +25,7 @@ SUPPORTED_LOG_TYPES = [
     'Application', 
     'System', 
     'PowerShell',
+    'TerminalServices',
     'Setup',
     'Forwarded Events',
     'Windows Defender',
@@ -65,6 +70,10 @@ RECOMMENDED_FIELDS_BY_TYPE = {
     'PowerShell': [
         'TimeCreated', 'EventID', '_event_name', 'Level',
         'EventData_ScriptBlockText', 'EventData_CommandName'
+    ],
+    'TerminalServices': [
+        'TimeCreated', 'EventID', '_event_name', 'Level',
+        'EventData_TargetUserName', 'EventData_SessionID', 'EventData_IpAddress'
     ],
 }
 
@@ -219,6 +228,21 @@ POWERSHELL_FIELDS = {
     'EventData_PreviousEngineState': {'label': '之前引擎状态', 'group': 'PowerShell', 'width': 120},
 }
 
+# TerminalServices / Remote Desktop log fields
+TERMINAL_SERVICES_FIELDS = {
+    'User': {'label': '用户', 'group': '远程桌面', 'width': 180},
+    'Address': {'label': 'IP地址', 'group': '网络信息', 'width': 140},
+    'SessionID': {'label': '会话ID', 'group': '远程桌面', 'width': 100},
+    'ClientAddress': {'label': '客户端地址', 'group': '网络信息', 'width': 160},
+    'ClientIP': {'label': '客户端IP', 'group': '网络信息', 'width': 140},
+    'EventData_User': {'label': '用户', 'group': '远程桌面', 'width': 180},
+    'EventData_Address': {'label': 'IP地址', 'group': '网络信息', 'width': 140},
+    'EventData_SessionID': {'label': '会话ID', 'group': '远程桌面', 'width': 100},
+    'EventData_Session': {'label': '会话', 'group': '远程桌面', 'width': 100},
+    'EventData_ClientAddress': {'label': '客户端地址', 'group': '网络信息', 'width': 160},
+    'EventData_ClientIP': {'label': '客户端IP', 'group': '网络信息', 'width': 140},
+}
+
 # ==================== 合并所有字段 ====================
 FIELD_DICT = {}
 FIELD_DICT.update(BASE_FIELDS)
@@ -226,6 +250,7 @@ FIELD_DICT.update(SECURITY_FIELDS)
 FIELD_DICT.update(SYSTEM_FIELDS)
 FIELD_DICT.update(APPLICATION_FIELDS)
 FIELD_DICT.update(POWERSHELL_FIELDS)
+FIELD_DICT.update(TERMINAL_SERVICES_FIELDS)
 
 # Fields by log type
 FIELDS_BY_LOG_TYPE = {
@@ -233,6 +258,7 @@ FIELDS_BY_LOG_TYPE = {
     'System': set(BASE_FIELDS.keys()) | set(SYSTEM_FIELDS.keys()),
     'Application': set(BASE_FIELDS.keys()) | set(APPLICATION_FIELDS.keys()),
     'PowerShell': set(BASE_FIELDS.keys()) | set(POWERSHELL_FIELDS.keys()),
+    'TerminalServices': set(BASE_FIELDS.keys()) | set(TERMINAL_SERVICES_FIELDS.keys()),
 }
 
 

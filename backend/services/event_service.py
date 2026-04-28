@@ -127,30 +127,24 @@ class EventService:
         获取可用字段列表 - 通过Channel识别日志类型
         """
         try:
-            file_name = os.path.basename(file_path)
-            
             # 通过Channel检测日志类型
             channel, log_type, is_supported = self.detect_log_type(file_path)
-            
-            # 不支持的日志类型返回错误
-            if not is_supported:
-                return {
-                    'success': False,
-                    'error': f'BETA版不支持的日志类型，敬请期待 (Channel: {channel or "未知"})',
-                    'log_type': log_type,
-                    'channel': channel,
-                    'is_supported': False,
-                    'supported_types': SUPPORTED_LOG_TYPES
-                }
-            
-            # 获取静态字段字典
+
             field_dict = get_all_fields()
-            default_visible = get_default_visible_fields()
-            recommended = get_recommended_fields(log_type)
-            
-            # 构建字段信息列表
+            sampled_fields = self._collect_available_fields(file_path, sample_size)
+
+            # Keep recommended/default fields available even if a small sample misses them.
+            sampled_fields.update(get_default_visible_fields())
+            sampled_fields.update(get_recommended_fields(log_type))
+            sampled_fields.update({'_event_name', '_event_description', '_event_category', '_event_severity'})
+
             field_info = []
-            for field_name, info in field_dict.items():
+            for field_name in sampled_fields:
+                info = field_dict.get(field_name, {
+                    'label': field_name,
+                    'group': '其他',
+                    'width': 140
+                })
                 field_info.append({
                     'name': field_name,
                     'label': info['label'],
@@ -162,9 +156,9 @@ class EventService:
             group_order = {
                 '基础信息': 0, '时间信息': 1, '事件描述': 2, '提供者信息': 3,
                 '执行信息': 4, '安全信息': 5, '登录信息': 6, '网络信息': 7,
-                '进程信息': 8, '服务信息': 9, 'PowerShell': 10, '对象访问': 11,
-                '审核策略': 12, 'Kerberos': 13, '应用程序': 14, '远程访问': 15,
-                '系统参数': 16, '系统信息': 17, '账户管理': 18, '文件共享': 19,
+                '进程信息': 8, '服务信息': 9, 'PowerShell': 10, '远程桌面': 11,
+                '对象访问': 12, '审核策略': 13, 'Kerberos': 14, '应用程序': 15,
+                '远程访问': 16, '系统参数': 17, '系统信息': 18, '账户管理': 19, '文件共享': 20,
                 '计划任务': 20, '错误状态': 21, '其他': 99
             }
             field_info.sort(key=lambda x: (group_order.get(x['group'], 50), x['name']))
@@ -174,15 +168,38 @@ class EventService:
             return {
                 'success': True,
                 'fields': field_info,
-                'default_visible': default_visible,
-                'recommended': recommended,
+                'default_visible': [field for field in get_default_visible_fields() if field in sampled_fields],
+                'recommended': [field for field in get_recommended_fields(log_type) if field in sampled_fields],
                 'log_type': log_type,
                 'channel': channel,
-                'is_supported': is_supported
+                'is_supported': is_supported,
+                'supported_types': SUPPORTED_LOG_TYPES
             }
         except Exception as e:
             print(f"[字段列表] 失败: {e}")
             return {'success': False, 'error': str(e)}
+
+    def _collect_available_fields(self, file_path: str, sample_size: int) -> set:
+        """Collect real fields from cache, memory, or a parser sample."""
+        collected_fields = set()
+
+        sample_events = []
+        if self.sqlite_repo.is_cache_valid(file_path):
+            result = self.sqlite_repo.load_from_cache(file_path, 1, max(1, min(sample_size, 200)))
+            if result.get('success'):
+                sample_events = result.get('events', [])
+        elif self.memory_repo.has_cache(file_path):
+            sample_events, _ = self.memory_repo.get_paginated(file_path, 1, max(1, min(sample_size, 200)))
+        else:
+            sample_events = self.evtx_repo.parser.parse_range(file_path, 0, max(1, min(sample_size, 200)))
+
+        for event in sample_events:
+            collected_fields.update(
+                field_name for field_name, value in event.items()
+                if field_name != '_error' and value not in (None, '')
+            )
+
+        return collected_fields or set(get_all_fields().keys())
     
     def _add_event_descriptions(self, events: list) -> None:
         """为事件添加描述"""
