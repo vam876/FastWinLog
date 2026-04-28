@@ -15,7 +15,7 @@
 </div>
 
 - **最新版本**: 1.0.0
-- **更新日期**: 2025/12/18
+- **更新日期**: 2026/04/28
 - **下载地址**:  [https://github.com/vam876/FastWinLog/releases/tag/v1.0.0](https://github.com/vam876/FastWinLog/releases/tag/v1.0.0)
 
 ---
